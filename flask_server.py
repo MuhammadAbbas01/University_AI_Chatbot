@@ -1,3 +1,40 @@
+#!/usr/bin/env python3
+"""
+Flask Web Server for University of Malakand AI Chatbot
+Provides REST API and web interface for the intelligent chatbot system
+"""
+
+from flask import Flask, render_template_string, request, jsonify
+from flask_cors import CORS
+import json
+import logging
+import os
+from pathlib import Path
+import threading
+import time
+from datetime import datetime
+
+# Import your chatbot system
+try:
+    from data_scraper import UniversityDataScraper
+    from uom_ai_chatbot import UniversityAIChatbot
+    CHATBOT_AVAILABLE = True
+except ImportError:
+    CHATBOT_AVAILABLE = False
+    print("⚠️ Chatbot modules not found. Running in demo mode.")
+
+app = Flask(__name__)
+CORS(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Global chatbot instance
+chatbot_instance = None
+
+# HTML template for the web interface
+WEB_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -269,94 +306,6 @@
         const typingIndicator = document.getElementById('typingIndicator');
         const statusIndicator = document.getElementById('statusIndicator');
 
-        // Simple in-memory chat system (replace with actual backend)
-        const chatBot = {
-            responses: {
-                'hello': 'Hello! Welcome to University of Malakand. How can I help you today?',
-                'hi': 'Hi there! I\'m here to help you with any questions about the university.',
-                'help': `🎓 **University of Malakand AI Assistant**
-
-I can help you with:
-• **Faculty Information** - "Tell me about Dr. [Name]" or "Who teaches [subject]?"
-• **Departments** - "Information about Computer Science department"
-• **Admissions** - "How to apply for admission?" or "Admission requirements"
-• **Notifications** - "Latest university news" or "Recent announcements"
-• **Research** - "Research papers" or "Publications"
-• **General Info** - "About University of Malakand"
-
-**Example Questions:**
-- "Who is Dr. Fakhruddin?"
-- "How to apply for BS Computer Science?"
-- "What are the recent notifications?"
-- "Tell me about the English department"
-
-Just ask your question and I'll provide accurate information!`,
-                
-                'faculty': 'Our university has highly qualified faculty members across various departments. You can ask about specific professors like "Tell me about Dr. [Name]" or ask about faculty in a particular department.',
-                
-                'admission': `**Admission Information:**
-
-The University of Malakand offers various undergraduate and graduate programs. Here are the general requirements:
-
-**Undergraduate Programs:**
-- Intermediate (12 years) with relevant subjects
-- Entry test (if required)
-- Merit-based selection
-
-**Graduate Programs:**
-- Bachelor's degree from recognized institution
-- Relevant academic background
-- Entry test and interview
-
-For specific program requirements and deadlines, please visit the university's official admissions page.`,
-
-                'departments': `**Major Departments at University of Malakand:**
-
-• Computer Science & IT
-• English Literature
-• Mathematics
-• Physics
-• Chemistry
-• Botany
-• Zoology
-• Economics
-• Psychology
-• Education
-
-You can ask about specific departments for more detailed information.`,
-
-                'notifications': `**Recent University Updates:**
-
-For the most current notifications and announcements, please check:
-• University website: www.uom.edu.pk
-• Official notice boards
-• Department announcements
-
-You can ask me about specific types of notifications like "exam schedules" or "admission dates".`,
-
-                'default': 'I understand you\'re asking about the university. While I\'m still learning, I can help with information about faculty, departments, admissions, and general university queries. Could you please rephrase your question or be more specific?'
-            },
-
-            getResponse(message) {
-                const msg = message.toLowerCase().trim();
-                
-                // Simple keyword matching (replace with actual AI processing)
-                if (msg.includes('hello') || msg.includes('hi')) return this.responses.hello;
-                if (msg.includes('help')) return this.responses.help;
-                if (msg.includes('faculty') || msg.includes('professor') || msg.includes('teacher')) return this.responses.faculty;
-                if (msg.includes('admission') || msg.includes('apply')) return this.responses.admission;
-                if (msg.includes('department') || msg.includes('dept')) return this.responses.departments;
-                if (msg.includes('notification') || msg.includes('news') || msg.includes('announcement')) return this.responses.notifications;
-                
-                // Check for specific faculty names
-                if (msg.includes('dr.') || msg.includes('prof')) {
-                    return 'I can help you find information about faculty members. However, my knowledge base is currently being built. For specific faculty information, you can check the university website or provide more details about which department they belong to.';
-                }
-                
-                return this.responses.default;
-            }
-        };
-
         function addMessage(message, isUser = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = isUser ? 'message user-message' : 'message bot-message';
@@ -390,7 +339,7 @@ You can ask me about specific types of notifications like "exam schedules" or "a
             }, 3000);
         }
 
-        function sendMessage() {
+        async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
 
@@ -401,12 +350,29 @@ You can ask me about specific types of notifications like "exam schedules" or "a
             // Show typing indicator
             showTyping();
 
-            // Simulate processing delay
-            setTimeout(() => {
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
                 hideTyping();
-                const response = chatBot.getResponse(message);
-                addMessage(response);
-            }, 1000 + Math.random() * 1000); // Random delay 1-2 seconds
+                addMessage(data.response);
+
+            } catch (error) {
+                hideTyping();
+                addMessage('Sorry, I encountered an error. Please try again.', false);
+                showStatus('Connection Error', 'error');
+                console.error('Error:', error);
+            }
         }
 
         function sendQuickMessage(message) {
@@ -423,10 +389,227 @@ You can ask me about specific types of notifications like "exam schedules" or "a
         // Auto-focus on input
         messageInput.focus();
 
-        // Show connection status
-        window.addEventListener('load', () => {
-            showStatus('AI Assistant Ready!', 'success');
+        // Check server status on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                showStatus(data.message, 'success');
+            } catch (error) {
+                showStatus('Server connection failed', 'error');
+            }
         });
     </script>
 </body>
 </html>
+"""
+
+def initialize_chatbot():
+    """Initialize the chatbot system"""
+    global chatbot_instance
+    
+    if not CHATBOT_AVAILABLE:
+        logger.warning("Chatbot modules not available. Running in demo mode.")
+        return False
+    
+    try:
+        # Check if knowledge base exists
+        data_dir = Path("university_data")
+        db_path = data_dir / "university_knowledge.db"
+        
+        if not db_path.exists():
+            logger.info("Knowledge base not found. Please run data scraper first.")
+            return False
+        
+        chatbot_instance = UniversityAIChatbot()
+        logger.info("Chatbot initialized successfully!")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize chatbot: {e}")
+        return False
+
+# Demo responses for when chatbot is not available
+DEMO_RESPONSES = {
+    'help': """🎓 **University of Malakand AI Assistant**
+
+I can help you with:
+• **Faculty Information** - "Tell me about Dr. [Name]"
+• **Departments** - "Information about Computer Science department"
+• **Admissions** - "How to apply for admission?"
+• **Notifications** - "Latest university news"
+• **Research** - "Research papers"
+• **General Info** - "About University of Malakand"
+
+**Example Questions:**
+- "Who is Dr. Fakhruddin?"
+- "How to apply for BS Computer Science?"
+- "What are the recent notifications?"
+
+Just ask your question and I'll provide accurate information!""",
+    
+    'faculty': 'Our university has highly qualified faculty members across various departments. You can ask about specific professors or departments for more information.',
+    
+    'admission': """**Admission Information:**
+
+The University of Malakand offers various undergraduate and graduate programs.
+
+**Undergraduate Programs:**
+- Intermediate (12 years) with relevant subjects
+- Entry test (if required)
+- Merit-based selection
+
+**Graduate Programs:**
+- Bachelor's degree from recognized institution
+- Relevant academic background
+
+For specific requirements, visit www.uom.edu.pk""",
+    
+    'default': "I'm here to help with University of Malakand information. You can ask about faculty, departments, admissions, or general university queries."
+}
+
+def get_demo_response(message):
+    """Get demo response when chatbot is not available"""
+    msg = message.lower()
+    
+    if 'help' in msg:
+        return DEMO_RESPONSES['help']
+    elif any(word in msg for word in ['faculty', 'professor', 'teacher']):
+        return DEMO_RESPONSES['faculty']
+    elif any(word in msg for word in ['admission', 'apply', 'requirement']):
+        return DEMO_RESPONSES['admission']
+    else:
+        return DEMO_RESPONSES['default']
+
+@app.route('/')
+def index():
+    """Main page with chat interface"""
+    return render_template_string(WEB_TEMPLATE)
+
+@app.route('/api/status')
+def status():
+    """API endpoint to check server status"""
+    if chatbot_instance:
+        return jsonify({
+            'status': 'ready',
+            'message': 'AI Assistant Ready!',
+            'chatbot_available': True
+        })
+    else:
+        return jsonify({
+            'status': 'demo',
+            'message': 'Running in Demo Mode',
+            'chatbot_available': False
+        })
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """API endpoint for chat messages"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({'error': 'No message provided'}), 400
+        
+        # Log the request
+        logger.info(f"Chat request: {message}")
+        
+        # Get response from chatbot or demo
+        if chatbot_instance:
+            response = chatbot_instance.chat(message)
+        else:
+            response = get_demo_response(message)
+        
+        return jsonify({
+            'response': response,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Chat API error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/scrape', methods=['POST'])
+def trigger_scraping():
+    """API endpoint to trigger data scraping"""
+    if not CHATBOT_AVAILABLE:
+        return jsonify({'error': 'Scraper not available'}), 400
+    
+    try:
+        # Start scraping in background thread
+        def run_scraper():
+            scraper = UniversityDataScraper()
+            scraper.scrape_university_complete(max_pages=200)
+            
+            # Reinitialize chatbot after scraping
+            global chatbot_instance
+            chatbot_instance = UniversityAIChatbot()
+        
+        scraping_thread = threading.Thread(target=run_scraper)
+        scraping_thread.daemon = True
+        scraping_thread.start()
+        
+        return jsonify({
+            'message': 'Scraping started in background',
+            'status': 'started'
+        })
+        
+    except Exception as e:
+        logger.error(f"Scraping error: {e}")
+        return jsonify({'error': 'Failed to start scraping'}), 500
+
+@app.route('/api/knowledge-base-info')
+def knowledge_base_info():
+    """Get information about the knowledge base"""
+    data_dir = Path("university_data")
+    
+    if not data_dir.exists():
+        return jsonify({
+            'exists': False,
+            'message': 'Knowledge base not found'
+        })
+    
+    try:
+        # Get file counts
+        pages_count = len(list((data_dir / "pages").glob("*.json"))) if (data_dir / "pages").exists() else 0
+        faculty_count = len(list((data_dir / "faculty").glob("*.json"))) if (data_dir / "faculty").exists() else 0
+        docs_count = len(list((data_dir / "documents").rglob("*"))) if (data_dir / "documents").exists() else 0
+        
+        return jsonify({
+            'exists': True,
+            'pages_count': pages_count,
+            'faculty_count': faculty_count,
+            'documents_count': docs_count,
+            'database_exists': (data_dir / "university_knowledge.db").exists()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'exists': False,
+            'error': str(e)
+        })
+
+if __name__ == '__main__':
+    print("🎓 University of Malakand AI Chatbot Server")
+    print("=" * 50)
+    
+    # Initialize chatbot
+    chatbot_ready = initialize_chatbot()
+    
+    if chatbot_ready:
+        print("✅ Chatbot initialized successfully!")
+    else:
+        print("⚠️ Running in demo mode. Run data scraper to enable full functionality.")
+    
+    print(f"🌐 Starting server...")
+    print(f"📱 Access the chatbot at: http://localhost:5000")
+    print(f"🔧 API Status: http://localhost:5000/api/status")
+    
+    # Run Flask app
+    app.run(
+        host='0.0.0.0',  # Allow external connections (for Codespaces)
+        port=5000,
+        debug=True,
+        threaded=True
+    )
