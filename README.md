@@ -23,6 +23,8 @@ Students often struggle to find simple answers inside long regulation PDFs: *"Wh
 
 Everything runs **locally**. No paid API, no data sent to third-party LLM providers.
 
+The LLM is configurable per machine: **Mistral** on CPU-only machines, or **DeepSeek-r1:7b** on machines with a GPU — set with a single environment variable (`OLLAMA_MODEL`), no code changes needed. Both have been tested and work.
+
 ---
 
 ## ✨ Features
@@ -122,6 +124,7 @@ flowchart TD
 |---|---|
 | **RAG instead of fine-tuning** | Regulations change. Re-indexing a PDF is minutes; retraining a model is not. |
 | **Local LLM via Ollama** | Zero API cost, works offline, and no student questions leave the machine. |
+| **Per-machine model selection (Mistral / DeepSeek)** | One codebase, no code changes: `OLLAMA_MODEL=mistral` on CPU-only hardware, `OLLAMA_MODEL=deepseek-r1:7b` on hardware with a GPU. |
 | **MMR retrieval (k=10 from 50)** | Rules are spread across several documents. MMR avoids returning ten near-duplicate chunks. |
 | **1500-char chunks, 300 overlap** | Keeps full legal clauses together so a rule is not cut in half. |
 | **Temperature 0** | Regulations need exact numbers (days, percentages). No creativity wanted. |
