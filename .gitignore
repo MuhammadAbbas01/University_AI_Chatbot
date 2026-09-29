@@ -1,0 +1,24 @@
+# Environment
+.venv/
+venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# Generated at runtime (rebuilt automatically on first run)
+vector_db/
+logs/
+temp/
+analytics.json
+
+# Junk
+*.crdownload
+data/pdfs/._*
+.DS_Store
+Thumbs.db

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} - WITH VOICE SUPPORT 🎤</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="https://www.uom.edu.pk/images/uomlogo.png">
+    <style>
+        /* Voice Button Styles */
+        .voice-button {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 18px;
+            transition: all 0.3s;
+            margin-left: 10px;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .voice-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+        }
+
+        .voice-button:active {
+            transform: scale(0.95);
+        }
+
+        .voice-button.recording {
+            animation: pulse-red 1.5s infinite;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 20px rgba(220, 38, 38, 0.7); }
+            50% { box-shadow: 0 0 40px rgba(220, 38, 38, 1); }
+        }
+
+        .tts-toggle {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            transition: all 0.3s;
+            margin-left: 10px;
+        }
+
+        .tts-toggle:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .tts-toggle.active {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        }
+
+        .voice-status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 2px solid #dc2626;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            animation: fade-in 0.3s;
+        }
+
+        .recording-indicator.active {
+            display: flex;
+        }
+
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background: #dc2626;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse-dot 1s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        .input-with-voice {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg"></div>
+
+    <!-- Premium Header -->
+    <header class="premium-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="https://www.uom.edu.pk/images/uomlogo.png" alt="UoM Logo" class="university-logo">
+                    <div class="header-text">
+                        <h1>🎓 {{ university }}</h1>
+                        <p class="subtitle">{{ tagline }}</p>
+                        <p class="location">📍 {{ location }}</p>
+                    </div>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-badge pulse">📊 {{ total_questions }} Questions</div>
+                    <div class="stat-badge pulse">📚 {{ total_pdfs }} Documents</div>
+                    <div class="stat-badge pulse">🎤 Voice Enabled</div>
+                    <div class="stat-badge pulse">🏆 {{ stats.ranking }}</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- University Stats Banner -->
+    <div class="container">
+        <div class="university-banner">
+            <div class="banner-stat">
+                <div class="banner-number">{{ stats.students }}</div>
+                <div class="banner-label">Students</div>
+            </div>
+            <div class="banner-stat">
+                <div class="banner-number">{{ stats.faculty }}</div>
+                <div class="banner-label">Faculty</div>
+            </div>
+            <div class="banner-stat">
+                <div class="banner-number">{{ stats.programs }}</div>
+                <div class="banner-label">Programs</div>
+            </div>
+            <div class="banner-stat">
+                <div class="banner-number">{{ stats.established }}</div>
+                <div class="banner-label">Established</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Container -->
+    <div class="container main-container">
+        <div class="chat-container" id="chatContainer">
+            <!-- Welcome Message -->
+            <div class="welcome-message" id="welcomeMessage">
+                <div class="welcome-icon">🤖</div>
+                <h2>Welcome to {{ university }} AI Assistant!</h2>
+                <p>Get instant answers with <strong>TEXT 📝 or VOICE 🎤</strong></p>
+
+                <div class="university-badge">
+                    <span>🏛️</span>
+                    <span>{{ tagline }}</span>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <div class="feature-title">Comprehensive Search</div>
+                        <div class="feature-desc">Searches ALL {{ total_pdfs }} documents</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-title">Lightning Fast</div>
+                        <div class="feature-desc">Answers in 2-3 seconds</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎤</div>
+                        <div class="feature-title">Voice Input</div>
+                        <div class="feature-desc">Ask questions with your voice</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔊</div>
+                        <div class="feature-title">Voice Output</div>
+                        <div class="feature-desc">Hear answers spoken aloud</div>
+                    </div>
+                </div>
+
+                <div class="help-box">
+                    <p><strong>💡 I can help you with:</strong></p>
+                    <div class="help-categories">
+                        <span class="help-tag">📝 Admissions</span>
+                        <span class="help-tag">📖 Regulations</span>
+                        <span class="help-tag">📊 Examinations</span>
+                        <span class="help-tag">💰 Fees</span>
+                        <span class="help-tag">🎓 Programs</span>
+                        <span class="help-tag">👨‍🏫 Faculty</span>
+                        <span class="help-tag">🏢 Facilities</span>
+                        <span class="help-tag">📞 Contacts</span>
+                    </div>
+                </div>
+
+                <div class="example-questions">
+                    <h3>🚀 Try These Questions (Click or Say):</h3>
+                    <ul>
+                        <li onclick="askExample(this)">What are the examination regulations?</li>
+                        <li onclick="askExample(this)">Tell me about the faculty members</li>
+                        <li onclick="askExample(this)">What is the grading system?</li>
+                        <li onclick="askExample(this)">What are admission requirements?</li>
+                        <li onclick="askExample(this)">Tell me about scholarships</li>
+                        <li onclick="askExample(this)">What facilities are available?</li>
+                    </ul>
+                </div>
+
+                <div class="quick-resources">
+                    <h3>📥 Quick Access Resources</h3>
+                    <div class="resource-links">
+                        {% for name, url in resources.items() %}
+                        <a href="{{ url }}" target="_blank" class="resource-link">
+                            <span>📄</span>
+                            <span>{{ name }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div id="chatMessages"></div>
+        </div>
+
+        <!-- Recording Indicator -->
+        <div class="recording-indicator" id="recordingIndicator">
+            <div class="recording-dot"></div>
+            <strong>Recording... Speak now!</strong>
+        </div>
+
+        <!-- Premium Input Area with Voice -->
+        <div class="input-area">
+            <div class="input-container input-with-voice">
+                <textarea
+                    id="questionInput"
+                    placeholder="Type or click 🎤 to speak your question..."
+                    rows="1"
+                    onkeydown="handleKeyPress(event)"
+                ></textarea>
+
+                <button id="voiceButton" class="voice-button" onclick="toggleVoiceRecording()" title="Click to record voice">
+                    🎤
+                </button>
+
+                <button id="sendButton" class="send-button" onclick="sendQuestion()">
+                    <span id="buttonText">Send ✨</span>
+                    <span id="buttonLoader" class="loader" style="display: none;"></span>
+                </button>
+            </div>
+            <div class="input-actions">
+                <button class="action-button" onclick="clearChat()">
+                    <span>🗑️</span> Clear Chat
+                </button>
+                <button class="tts-toggle" id="ttsToggle" onclick="toggleTTS()" title="Enable/Disable voice responses">
+                    🔊 TTS: OFF
+                </button>
+                <span class="voice-status" id="voiceStatus">Voice Ready</span>
+                <button class="action-button" onclick="showExamples()">
+                    <span>💡</span> Examples
+                </button>
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot"></span>
+                    <span id="statusText">Ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Link -->
+    <a href="/admin" class="admin-link" title="Admin Panel">
+        <span>⚙️</span>
+    </a>
+
+    <script>
+        const questionInput = document.getElementById('questionInput');
+        const sendButton = document.getElementById('sendButton');
+        const voiceButton = document.getElementById('voiceButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const buttonText = document.getElementById('buttonText');
+        const buttonLoader = document.getElementById('buttonLoader');
+        const statusText = document.getElementById('statusText');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const ttsToggle = document.getElementById('ttsToggle');
+
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let ttsEnabled = false;
+        let currentAnswer = '';
+
+        // Auto-resize textarea
+        questionInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendQuestion();
+            }
+        }
+
+        // Toggle TTS
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            if (ttsEnabled) {
+                ttsToggle.textContent = '🔊 TTS: ON';
+                ttsToggle.classList.add('active');
+                voiceStatus.textContent = 'Voice Output Enabled';
+                voiceStatus.style.background = '#d1fae5';
+                voiceStatus.style.color = '#059669';
+            } else {
+                ttsToggle.textContent = '🔊 TTS: OFF';
+                ttsToggle.classList.remove('active');
+                voiceStatus.textContent = 'Voice Ready';
+                voiceStatus.style.background = '#eff6ff';
+                voiceStatus.style.color = '#1e40af';
+            }
+        }
+
+        // Voice Recording
+        async function toggleVoiceRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                await stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await transcribeAudio(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                voiceButton.classList.add('recording');
+                voiceButton.textContent = '⏹️';
+                recordingIndicator.classList.add('active');
+                voiceStatus.textContent = 'Recording...';
+                voiceStatus.style.background = '#fee2e2';
+                voiceStatus.style.color = '#dc2626';
+
+            } catch (error) {
+                console.error('Microphone access error:', error);
+                alert('Could not access microphone. Please allow microphone permission.');
+            }
+        }
+
+        async function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                voiceButton.classList.remove('recording');
+                voiceButton.textContent = '🎤';
+                recordingIndicator.classList.remove('active');
+                voiceStatus.textContent = 'Processing...';
+            }
+        }
+
+        async function transcribeAudio(audioBlob) {
+            try {
+                voiceStatus.textContent = 'Transcribing...';
+
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+
+                const response = await fetch('/voice/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.text) {
+                    questionInput.value = result.text;
+                    questionInput.style.height = 'auto';
+                    questionInput.style.height = (questionInput.scrollHeight) + 'px';
+                    voiceStatus.textContent = 'Transcribed!';
+                    voiceStatus.style.background = '#d1fae5';
+                    voiceStatus.style.color = '#059669';
+
+                    // Auto-send if user wants
+                    // sendQuestion();
+                } else {
+                    showError('Could not transcribe audio: ' + (result.error || 'Unknown error'));
+                    voiceStatus.textContent = 'Transcription Failed';
+                    voiceStatus.style.background = '#fee2e2';
+                    voiceStatus.style.color = '#dc2626';
+                }
+
+                setTimeout(() => {
+                    voiceStatus.textContent = 'Voice Ready';
+                    voiceStatus.style.background = '#eff6ff';
+                    voiceStatus.style.color = '#1e40af';
+                }, 3000);
+
+            } catch (error) {
+                console.error('Transcription error:', error);
+                showError('Voice transcription failed');
+                voiceStatus.textContent = 'Error';
+            }
+        }
+
+        async function speakAnswer(text) {
+            if (!ttsEnabled) return;
+
+            try {
+                voiceStatus.textContent = 'Generating Speech...';
+                voiceStatus.style.background = '#dbeafe';
+                voiceStatus.style.color = '#1e40af';
+
+                const response = await fetch('/voice/synthesize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+
+                    voiceStatus.textContent = 'Speaking...';
+                    voiceStatus.style.background = '#d1fae5';
+                    voiceStatus.style.color = '#059669';
+
+                    audio.play();
+
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        voiceStatus.textContent = 'Voice Ready';
+                        voiceStatus.style.background = '#eff6ff';
+                        voiceStatus.style.color = '#1e40af';
+                    };
+                } else {
+                    console.error('TTS failed');
+                }
+            } catch (error) {
+                console.error('TTS error:', error);
+            }
+        }
+
+        // Send question with streaming
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+
+            if (!question) {
+                showError('Please enter a question');
+                return;
+            }
+
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'none';
+            }
+
+            setLoading(true);
+            addMessage(question, 'user');
+
+            questionInput.value = '';
+            questionInput.style.height = 'auto';
+
+            const typingId = showTypingIndicator();
+            updateStatus('Processing...');
+
+            try {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant-message fade-in';
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+
+                const textDiv = document.createElement('div');
+                textDiv.className = 'formatted-answer';
+                contentDiv.appendChild(textDiv);
+                messageDiv.appendChild(contentDiv);
+
+                removeTypingIndicator(typingId);
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                // STREAMING!
+                const response = await fetch('/ask_stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question: question })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = JSON.parse(line.slice(6));
+
+                            if (data.error) {
+                                showError(data.error);
+                                break;
+                            }
+
+                            if (data.type === 'word') {
+                                textDiv.innerHTML = data.full_text;
+                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                            }
+
+                            if (data.type === 'complete') {
+                                currentAnswer = data.answer_text;
+
+                                // Add sources
+                                if (data.sources && data.sources.length > 0) {
+                                    const sourcesDiv = document.createElement('div');
+                                    sourcesDiv.className = 'sources';
+
+                                    const sourcesLabel = document.createElement('div');
+                                    sourcesLabel.className = 'sources-label';
+                                    sourcesLabel.innerHTML = '📚 Sources:';
+                                    sourcesDiv.appendChild(sourcesLabel);
+
+                                    data.sources.forEach(source => {
+                                        const tag = document.createElement('span');
+                                        tag.className = 'source-tag';
+                                        tag.title = source.snippet;
+                                        tag.textContent = `${source.file} (Page ${source.page})`;
+                                        sourcesDiv.appendChild(tag);
+                                    });
+
+                                    contentDiv.appendChild(sourcesDiv);
+                                }
+
+                                // Add metadata
+                                const metaDiv = document.createElement('div');
+                                metaDiv.className = 'message-meta';
+                                metaDiv.innerHTML = `
+                                    <span class="meta-item">⏱️ ${data.response_time}</span>
+                                    <span class="meta-item">📄 ${data.pdfs_searched} PDFs searched</span>
+                                    <span class="meta-item">🤖 ${data.model}</span>
+                                    <span class="meta-item">⏰ ${data.timestamp}</span>
+                                `;
+                                messageDiv.appendChild(metaDiv);
+
+                                // TTS if enabled
+                                if (ttsEnabled && currentAnswer) {
+                                    await speakAnswer(currentAnswer);
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                showError('Connection error. Please try again.');
+                console.error('Stream error:', error);
+            } finally {
+                setLoading(false);
+                updateStatus('Ready');
+            }
+        }
+
+        function addMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message fade-in`;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = `<p>${escapeHtml(text)}</p>`;
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            const typingId = 'typing-' + Date.now();
+            typingDiv.id = typingId;
+            typingDiv.className = 'message assistant-message fade-in';
+            typingDiv.innerHTML = `
+                <div class="typing-indicator">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return typingId;
+        }
+
+        function removeTypingIndicator(typingId) {
+            const element = document.getElementById(typingId);
+            if (element) element.remove();
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message fade-in';
+            errorDiv.innerHTML = `
+                <div class="error-message">
+                    <strong>❌ Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+            chatMessages.appendChild(errorDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function setLoading(isLoading) {
+            sendButton.disabled = isLoading;
+            questionInput.disabled = isLoading;
+
+            if (isLoading) {
+                buttonText.style.display = 'none';
+                buttonLoader.style.display = 'inline-block';
+            } else {
+                buttonText.style.display = 'inline';
+                buttonLoader.style.display = 'none';
+                questionInput.focus();
+            }
+        }
+
+        function updateStatus(text) {
+            statusText.textContent = text;
+        }
+
+        async function clearChat() {
+            if (confirm('Clear all chat history?')) {
+                try {
+                    await fetch('/clear', { method: 'POST' });
+                    chatMessages.innerHTML = '';
+                    if (welcomeMessage) welcomeMessage.style.display = 'block';
+                } catch (error) {
+                    showError('Could not clear chat');
+                }
+            }
+        }
+
+        function showExamples() {
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'block';
+                chatMessages.innerHTML = '';
+            }
+        }
+
+        function askExample(element) {
+            questionInput.value = element.textContent;
+            questionInput.focus();
+            questionInput.style.height = 'auto';
+            questionInput.style.height = (questionInput.scrollHeight) + 'px';
+            questionInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                updateStatus(data.status === 'online' ? 'Ready' : 'Initializing...');
+            } catch (error) {
+                updateStatus('Offline');
+            }
+        }
+
+        // Initialize
+        questionInput.focus();
+        checkStatus();
+        setInterval(checkStatus, 30000);
+
+        const observer = new MutationObserver(() => {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+        observer.observe(chatMessages, { childList: true });
+    </script>
+</body>
+</html>
