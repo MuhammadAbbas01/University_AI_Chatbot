@@ -23,8 +23,6 @@ Students often struggle to find simple answers inside long regulation PDFs: *"Wh
 
 Everything runs **locally**. No paid API, no data sent to third-party LLM providers.
 
-> ⚠️ Independent project. Not officially affiliated with the University of Malakand. Always confirm important decisions with the university.
-
 ---
 
 ## ✨ Features
@@ -290,6 +288,8 @@ Being honest about the current state:
 - [ ] Automated tests and CI
 
 ---
+
+> ⚠️ Independent project. Not officially affiliated with the University of Malakand. Always confirm important decisions with the university.
 
 ## 👤 Author
 
